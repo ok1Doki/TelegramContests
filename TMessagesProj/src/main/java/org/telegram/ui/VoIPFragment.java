@@ -52,14 +52,17 @@ import androidx.core.view.ViewCompat;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ContactsController;
+import org.telegram.messenger.DocumentObject;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
+import org.telegram.messenger.SvgHelper;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
@@ -124,9 +127,13 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     private ImageView backIcon;
     private ImageView speakerPhoneIcon;
 
-    LinearLayout emojiLayout;
+    LinearLayout emojiMiniLayout;
+    LinearLayout emojiAnimatedLayout;
+    LinearLayout emojiFullLayout;
     TextView emojiRationalTextView;
+    TextView hideEmojiBtn;
     ImageView[] emojiViews = new ImageView[4];
+    BackupImageView[] emojiAnimatedViews = new BackupImageView[4];
     Emoji.EmojiDrawable[] emojiDrawables = new Emoji.EmojiDrawable[4];
     LinearLayout statusLayout;
     private VoIPFloatingLayout currentUserCameraFloatingLayout;
@@ -399,8 +406,9 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         ((FrameLayout.LayoutParams) speakerPhoneIcon.getLayoutParams()).topMargin = lastInsets.getSystemWindowInsetTop();
         ((FrameLayout.LayoutParams) topShadow.getLayoutParams()).topMargin = lastInsets.getSystemWindowInsetTop();
         ((FrameLayout.LayoutParams) statusLayout.getLayoutParams()).topMargin = AndroidUtilities.dp(68) + lastInsets.getSystemWindowInsetTop();
-        ((FrameLayout.LayoutParams) emojiLayout.getLayoutParams()).topMargin = AndroidUtilities.dp(17) + lastInsets.getSystemWindowInsetTop();
         ((FrameLayout.LayoutParams) callingUserPhotoViewMini.getLayoutParams()).topMargin = AndroidUtilities.dp(68) + lastInsets.getSystemWindowInsetTop();
+        ((FrameLayout.LayoutParams) emojiMiniLayout.getLayoutParams()).topMargin = AndroidUtilities.dp(17) + lastInsets.getSystemWindowInsetTop();
+        ((FrameLayout.LayoutParams) hideEmojiBtn.getLayoutParams()).topMargin = AndroidUtilities.dp(17) + lastInsets.getSystemWindowInsetTop();
 
         ((FrameLayout.LayoutParams) currentUserCameraFloatingLayout.getLayoutParams()).bottomMargin = lastInsets.getSystemWindowInsetBottom();
         ((FrameLayout.LayoutParams) callingUserMiniFloatingLayout.getLayoutParams()).bottomMargin = lastInsets.getSystemWindowInsetBottom();
@@ -777,38 +785,78 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         frameLayout.addView(topShadow, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 140, Gravity.TOP));
 
 
-        emojiLayout = new LinearLayout(context) {
+        emojiMiniLayout = new LinearLayout(context) {
             @Override
             public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
                 super.onInitializeAccessibilityNodeInfo(info);
                 info.setVisibleToUser(emojiLoaded);
             }
         };
-        emojiLayout.setOrientation(LinearLayout.HORIZONTAL);
-        emojiLayout.setPadding(0, 0, 0, AndroidUtilities.dp(30));
-        emojiLayout.setClipToPadding(false);
-
-        emojiLayout.setOnClickListener(view -> {
+        emojiMiniLayout.setOrientation(LinearLayout.HORIZONTAL);
+        emojiMiniLayout.setPadding(0, 0, 0, AndroidUtilities.dp(30));
+        emojiMiniLayout.setClipToPadding(false);
+        emojiMiniLayout.setOnClickListener(view -> {
             if (System.currentTimeMillis() - lastContentTapTime < 500) {
                 return;
             }
             lastContentTapTime = System.currentTimeMillis();
-            if (emojiLoaded) {
-                expandEmoji(!emojiExpanded);
+            if (emojiLoaded && !emojiExpanded) {
+                expandEmoji(true);
             }
         });
 
+        emojiAnimatedLayout = new LinearLayout(context);
+        emojiAnimatedLayout.setOrientation(LinearLayout.HORIZONTAL);
+        emojiAnimatedLayout.setPadding(0, 0, 0, AndroidUtilities.dp(0));
+        emojiAnimatedLayout.setClipToPadding(false);
+
         emojiRationalTextView = new TextView(context);
-        emojiRationalTextView.setText(LocaleController.formatString("CallEmojiKeyTooltip", R.string.CallEmojiKeyTooltip, UserObject.getFirstName(callingUser)));
+        emojiRationalTextView.setText(AndroidUtilities.replaceTags(
+                LocaleController.formatString(
+                        "CallEmojiKeyTooltip2",
+                        R.string.CallEmojiKeyTooltip2,
+                        UserObject.getFirstName(callingUser))));
         emojiRationalTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         emojiRationalTextView.setTextColor(Color.WHITE);
         emojiRationalTextView.setGravity(Gravity.CENTER);
+        emojiRationalTextView.setMinLines(4);
         emojiRationalTextView.setVisibility(View.GONE);
+
+        emojiFullLayout = new LinearLayout(context);
+        emojiFullLayout.setOrientation(LinearLayout.VERTICAL);
+        emojiFullLayout.setGravity(Gravity.CENTER_HORIZONTAL);
+        emojiFullLayout.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(10), AndroidUtilities.dp(10), AndroidUtilities.dp(10));
+        emojiFullLayout.setClipToPadding(false);
+        emojiFullLayout.setBackground(Theme.getThemedDrawable(context, R.drawable.card_bg, 0xff000000));
+        emojiFullLayout.setVisibility(View.GONE);
+        emojiFullLayout.addView(emojiAnimatedLayout, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 24, 24, 24, 0));
+        emojiFullLayout.addView(emojiRationalTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 24, 24, 24, 16));
+
+        hideEmojiBtn = new TextView(context);
+        hideEmojiBtn.setBackground(Theme.getThemedDrawable(context, R.drawable.card_bg, 0xff000000));
+        hideEmojiBtn.setText(AndroidUtilities.replaceTags(LocaleController.formatString("HideEmoji", R.string.HideEmoji)));
+        hideEmojiBtn.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(4), AndroidUtilities.dp(16), AndroidUtilities.dp(4));
+        hideEmojiBtn.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        hideEmojiBtn.setTextColor(Color.WHITE);
+        hideEmojiBtn.setGravity(Gravity.CENTER);
+        hideEmojiBtn.setVisibility(View.GONE);
+        hideEmojiBtn.setOnClickListener(view -> {
+            if (System.currentTimeMillis() - lastContentTapTime < 500) {
+                return;
+            }
+            lastContentTapTime = System.currentTimeMillis();
+            if (emojiLoaded && emojiExpanded) {
+                expandEmoji(false);
+            }
+        });
 
         for (int i = 0; i < 4; i++) {
             emojiViews[i] = new ImageView(context);
             emojiViews[i].setScaleType(ImageView.ScaleType.FIT_XY);
-            emojiLayout.addView(emojiViews[i], LayoutHelper.createLinear(22, 22, i == 0 ? 0 : 4, 0, 0, 0));
+            emojiMiniLayout.addView(emojiViews[i], LayoutHelper.createLinear(22, 22, i == 0 ? 0 : 4, 0, 0, 0));
+
+            emojiAnimatedViews[i] = new BackupImageView(context);
+            emojiAnimatedLayout.addView(emojiAnimatedViews[i], LayoutHelper.createLinear(52, 52, i == 0 ? 0 : 16, 0, 0, 0));
         }
         statusLayout = new LinearLayout(context) {
             @Override
@@ -866,8 +914,9 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
 
         frameLayout.addView(callingUserPhotoViewMini, LayoutHelper.createFrame(135, 135, Gravity.CENTER_HORIZONTAL, 0, 68, 0, 0));
         frameLayout.addView(statusLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 68, 0, 0));
-        frameLayout.addView(emojiLayout, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 17, 0, 0));
-        frameLayout.addView(emojiRationalTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 24, 32, 24, 0));
+        frameLayout.addView(hideEmojiBtn, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 17, 0, 0));
+        frameLayout.addView(emojiMiniLayout, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 17, 0, 0));
+        frameLayout.addView(emojiFullLayout, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 17, 0, 0));
 
         buttonsLayout = new VoIPButtonsLayout(context);
         for (int i = 0; i < 4; i++) {
@@ -1094,7 +1143,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
 
         speakerPhoneIcon.animate().alpha(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
         backIcon.animate().alpha(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
-        emojiLayout.animate().alpha(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
+        emojiMiniLayout.animate().alpha(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
         statusLayout.animate().alpha(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
         buttonsLayout.animate().alpha(0).setDuration(350).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
         bottomShadow.animate().alpha(0).setDuration(350).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
@@ -1148,7 +1197,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             Animator animator = createPiPTransition(true);
 
             backIcon.setAlpha(0f);
-            emojiLayout.setAlpha(0f);
+            emojiMiniLayout.setAlpha(0f);
             statusLayout.setAlpha(0f);
             buttonsLayout.setAlpha(0f);
             bottomShadow.setAlpha(0f);
@@ -1164,7 +1213,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
 
                 speakerPhoneIcon.animate().setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
                 backIcon.animate().alpha(1f).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
-                emojiLayout.animate().alpha(1f).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
+                emojiMiniLayout.animate().alpha(1f).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
                 statusLayout.animate().alpha(1f).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
                 buttonsLayout.animate().alpha(1f).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
                 bottomShadow.animate().alpha(1f).setDuration(350).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
@@ -1313,20 +1362,42 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         if (expanded) {
             AndroidUtilities.runOnUIThread(hideUIRunnable);
             hideUiRunnableWaiting = false;
-            float s1 = emojiLayout.getMeasuredWidth();
-            float s2 = windowView.getMeasuredWidth() - AndroidUtilities.dp(128);
-            float scale = s2 / s1;
-            emojiLayout.animate().scaleX(scale).scaleY(scale)
-                    .translationY(windowView.getHeight() / 2f - emojiLayout.getBottom())
+
+            emojiMiniLayout.setVisibility(View.GONE);
+
+            emojiFullLayout.animate().setListener(null).cancel();
+            if (emojiFullLayout.getVisibility() != View.VISIBLE) {
+                emojiFullLayout.setVisibility(View.VISIBLE);
+                emojiFullLayout.setAlpha(0f);
+                emojiFullLayout.setScaleX(0f);
+                emojiFullLayout.setScaleY(0f);
+            }
+            emojiFullLayout.animate()
+                    .alpha(1f).scaleX(1).scaleY(1)
+                    .translationY(windowView.getHeight() / 2f - emojiMiniLayout.getBottom())
                     .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT)
-                    .setDuration(250)
+                    .setDuration(500)
                     .start();
+
             emojiRationalTextView.animate().setListener(null).cancel();
             if (emojiRationalTextView.getVisibility() != View.VISIBLE) {
                 emojiRationalTextView.setVisibility(View.VISIBLE);
                 emojiRationalTextView.setAlpha(0f);
+                emojiRationalTextView.setPadding(40, 0, 40, 0);
             }
-            emojiRationalTextView.animate().alpha(1f).setDuration(150).start();
+            emojiRationalTextView.animate().alpha(1f).setDuration(300).start();
+
+            hideEmojiBtn.animate().setListener(null).cancel();
+            if (hideEmojiBtn.getVisibility() != View.VISIBLE) {
+                hideEmojiBtn.setVisibility(View.VISIBLE);
+                hideEmojiBtn.setAlpha(0f);
+                hideEmojiBtn.setScaleX(0.5f);
+                hideEmojiBtn.setScaleY(0.5f);
+            }
+            hideEmojiBtn.animate().alpha(1f).scaleX(1f).scaleY(1f)
+                    .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT)
+                    .setDuration(500)
+                    .start();
 
             overlayBackground.animate().setListener(null).cancel();
             if (overlayBackground.getVisibility() != View.VISIBLE) {
@@ -1336,24 +1407,36 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             }
             overlayBackground.animate().alpha(1f).setDuration(150).start();
         } else {
-            emojiLayout.animate().scaleX(1f).scaleY(1f)
-                    .translationY(0)
-                    .setInterpolator(CubicBezierInterpolator.DEFAULT)
-                    .setDuration(150)
+            if (emojiMiniLayout.getVisibility() != View.VISIBLE) {
+                emojiMiniLayout.setVisibility(View.VISIBLE);
+                emojiMiniLayout.setAlpha(0f);
+                emojiMiniLayout.setScaleX(0.5f);
+                emojiMiniLayout.setScaleY(0.5f);
+            }
+            emojiMiniLayout.animate()
+                    .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT)
+                    .alpha(1f)
+                    .scaleX(1f).scaleY(1f)
+                    .setDuration(500)
                     .start();
 
-            if (emojiRationalTextView.getVisibility() != View.GONE) {
-                emojiRationalTextView.animate().alpha(0).setListener(new AnimatorListenerAdapter() {
-                    @Override
-                    public void onAnimationEnd(Animator animation) {
-                        VoIPService service = VoIPService.getSharedInstance();
-                        if (canHideUI && !hideUiRunnableWaiting && service != null && !service.isMicMute()) {
-                            AndroidUtilities.runOnUIThread(hideUIRunnable, 3000);
-                            hideUiRunnableWaiting = true;
-                        }
-                        emojiRationalTextView.setVisibility(View.GONE);
-                    }
-                }).setDuration(150).start();
+            if (emojiFullLayout.getVisibility() != View.GONE) {
+                emojiFullLayout.animate()
+                        .translationY(-windowView.getHeight() / 100f)
+                        .alpha(0).scaleX(0.5f).scaleY(0.5f)
+                        .setInterpolator(CubicBezierInterpolator.DEFAULT)
+                        .setListener(new AnimatorListenerAdapter() {
+                            @Override
+                            public void onAnimationEnd(Animator animation) {
+                                VoIPService service = VoIPService.getSharedInstance();
+                                if (canHideUI && !hideUiRunnableWaiting && service != null && !service.isMicMute()) {
+                                    AndroidUtilities.runOnUIThread(hideUIRunnable, 3000);
+                                    hideUiRunnableWaiting = true;
+                                }
+                                emojiRationalTextView.setVisibility(View.GONE);
+                                emojiFullLayout.setVisibility(View.GONE);
+                            }
+                        }).setDuration(300).start();
 
                 overlayBackground.animate().alpha(0).setListener(new AnimatorListenerAdapter() {
                     @Override
@@ -1362,6 +1445,13 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                     }
                 }).setDuration(150).start();
             }
+
+            hideEmojiBtn.animate().alpha(0).setListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    hideEmojiBtn.setVisibility(View.GONE);
+                }
+            }).setDuration(150).start();
         }
     }
 
@@ -1385,11 +1475,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                 statusLayoutOffset = AndroidUtilities.dp(24);
                 acceptDeclineView.setRetryMod(false);
                 if (service != null && service.privateCall.video) {
-                    if (currentUserIsVideo && callingUser.photo != null) {
-                        showCallingAvatarMini = true;
-                    } else {
-                        showCallingAvatarMini = false;
-                    }
+                    showCallingAvatarMini = currentUserIsVideo && callingUser.photo != null;
                     statusTextView.setText(LocaleController.getString("VoipInVideoCallBranding", R.string.VoipInVideoCallBranding), true, animated);
                     acceptDeclineView.setTranslationY(-AndroidUtilities.dp(60));
                 } else {
@@ -1731,7 +1817,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         if (!show && uiVisible) {
             speakerPhoneIcon.animate().alpha(0).translationY(-AndroidUtilities.dp(50)).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
             backIcon.animate().alpha(0).translationY(-AndroidUtilities.dp(50)).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
-            emojiLayout.animate().alpha(0).translationY(-AndroidUtilities.dp(50)).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
+            emojiMiniLayout.animate().alpha(0).translationY(-AndroidUtilities.dp(50)).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
             statusLayout.animate().alpha(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
             buttonsLayout.animate().alpha(0).translationY(AndroidUtilities.dp(50)).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
             bottomShadow.animate().alpha(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
@@ -1747,7 +1833,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             tapToVideoTooltip.hide();
             speakerPhoneIcon.animate().alpha(1f).translationY(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
             backIcon.animate().alpha(1f).translationY(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
-            emojiLayout.animate().alpha(1f).translationY(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
+            emojiMiniLayout.animate().alpha(1f).translationY(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
             statusLayout.animate().alpha(1f).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
             buttonsLayout.animate().alpha(1f).translationY(0).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
             bottomShadow.animate().alpha(1f).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
@@ -1904,6 +1990,14 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                 emojiViews[i].setImageDrawable(drawable);
                 emojiViews[i].setContentDescription(emoji[i]);
                 emojiViews[i].setVisibility(View.GONE);
+
+                TLRPC.Document document = MediaDataController.getInstance(UserConfig.selectedAccount).getEmojiAnimatedSticker(emoji[i]);
+                if (document != null) {
+                    SvgHelper.SvgDrawable svgThumb = DocumentObject.getSvgThumb(document.thumbs, Theme.key_emptyListPlaceholder, 0.5f);
+                    emojiAnimatedViews[i].setImage(ImageLocation.getForDocument(document), "50_50", svgThumb, 0, document);
+                } else {
+                    emojiAnimatedViews[i].setImageDrawable(drawable);
+                }
             }
             emojiDrawables[i] = drawable;
         }
@@ -2153,7 +2247,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
 
     private void setFrontalCameraAction(VoIPToggleButton bottomButton, VoIPService service, boolean animated) {
         if (!currentUserIsVideo) {
-            bottomButton.setData(R.drawable.calls_flip,  ColorUtils.setAlphaComponent(Color.WHITE, (int) (255 * 0.5f)), ColorUtils.setAlphaComponent(Color.WHITE, (int) (255 * 0.12f)), LocaleController.getString("VoipFlip", R.string.VoipFlip), false, animated);
+            bottomButton.setData(R.drawable.calls_flip, ColorUtils.setAlphaComponent(Color.WHITE, (int) (255 * 0.5f)), ColorUtils.setAlphaComponent(Color.WHITE, (int) (255 * 0.12f)), LocaleController.getString("VoipFlip", R.string.VoipFlip), false, animated);
             bottomButton.setOnClickListener(null);
             bottomButton.setEnabled(false);
         } else {

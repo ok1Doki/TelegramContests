@@ -4003,7 +4003,8 @@
     <string name="VoipOutputDevices">Output Devices</string>
     <string name="ReturnToCall">RETURN TO CALL</string>
     <string name="CallNotAvailable">Sorry, **%1$s** doesn\'t accept calls.</string>
-    <string name="CallEmojiKeyTooltip">If emoji on %1$s\'s screen are the same, this call is 100%% secure.</string>
+    <string name="HideEmoji">**Hide emoji**</string>
+    <string name="CallEmojiKeyTooltip2">**This call is end-to end encrypted**\n\nIf emoji on **%1$s**\'s screen are the\nsame, this call is 100%% secure.</string>
     <string name="CallMessageReportProblem">Rate Call</string>
     <string name="CallReportHint">What went wrong?</string>
     <string name="CallReportIncludeLogs">Include technical information</string>

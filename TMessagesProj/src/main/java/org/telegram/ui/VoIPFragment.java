@@ -75,6 +75,7 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.DarkAlertDialog;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AlertsCreator;
+import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.HintView;
@@ -856,13 +857,13 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         emojiFullLayout.setGravity(Gravity.CENTER_HORIZONTAL);
         emojiFullLayout.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(10), AndroidUtilities.dp(10), AndroidUtilities.dp(10));
         emojiFullLayout.setClipToPadding(false);
-        emojiFullLayout.setBackground(Theme.getThemedDrawable(context, R.drawable.card_bg, 0xff000000));
+        emojiFullLayout.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.3f))));
         emojiFullLayout.setVisibility(View.GONE);
         emojiFullLayout.addView(emojiAnimatedLayout, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 24, 16, 24, 0));
         emojiFullLayout.addView(emojiRationalTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 16, 0, 16));
 
         hideEmojiBtn = new TextView(context);
-        hideEmojiBtn.setBackground(Theme.getThemedDrawable(context, R.drawable.card_bg, 0xff000000));
+        hideEmojiBtn.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.3f))));
         hideEmojiBtn.setText(AndroidUtilities.replaceTags(LocaleController.formatString("HideEmoji", R.string.HideEmoji)));
         hideEmojiBtn.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(4), AndroidUtilities.dp(16), AndroidUtilities.dp(4));
         hideEmojiBtn.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
@@ -918,7 +919,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         statusLayout.setFocusableInTouchMode(true);
 
         callingUserPhotoView = new BackupImageView(context);
-        callingUserPhotoView.setImage(ImageLocation.getForUserOrChat(callingUser, ImageLocation.TYPE_SMALL), null, Theme.createCircleDrawable(AndroidUtilities.dp(135), 0x00000000), callingUser);
+        callingUserPhotoView.setImage(ImageLocation.getForUserOrChat(callingUser, ImageLocation.TYPE_SMALL), null, new AvatarDrawable(callingUser), callingUser);
         callingUserPhotoView.setRoundRadius(AndroidUtilities.dp(135) / 2);
 
         callingUserTitle = new TextView(context);

@@ -77,10 +77,12 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
+import org.telegram.ui.Components.BlobDrawable;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.HintView;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.MotionBackgroundDrawable;
+import org.telegram.ui.Components.WaveDrawable;
 import org.telegram.ui.Components.voip.AcceptDeclineView;
 import org.telegram.ui.Components.voip.PrivateVideoPreviewDialog;
 import org.telegram.ui.Components.voip.VoIPButtonsLayout;
@@ -139,6 +141,12 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     private ValueAnimator patternAlphaAnimator;
 
     private BackupImageView callingUserPhotoView;
+    private BlobDrawable tinyWaveDrawable = new BlobDrawable(11);
+    private BlobDrawable bigWaveDrawable = new BlobDrawable(12);
+    private float amplitude;
+    private float animateToAmplitude;
+    private float animateAmplitudeDiff;
+    private long lastUpdateTime;
 
     private TextView callingUserTitle;
 
@@ -425,7 +433,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         ((FrameLayout.LayoutParams) speakerPhoneIcon.getLayoutParams()).topMargin = lastInsets.getSystemWindowInsetTop();
         ((FrameLayout.LayoutParams) topShadow.getLayoutParams()).topMargin = lastInsets.getSystemWindowInsetTop();
         ((FrameLayout.LayoutParams) statusLayout.getLayoutParams()).topMargin = AndroidUtilities.dp(120) + lastInsets.getSystemWindowInsetTop();
-        ((FrameLayout.LayoutParams) callingUserPhotoView.getLayoutParams()).topMargin = AndroidUtilities.dp(120) + lastInsets.getSystemWindowInsetTop();
+        ((FrameLayout.LayoutParams) callingUserPhotoView.getLayoutParams()).topMargin = AndroidUtilities.dp(110) + lastInsets.getSystemWindowInsetTop();
         ((FrameLayout.LayoutParams) emojiMiniLayout.getLayoutParams()).topMargin = AndroidUtilities.dp(17) + lastInsets.getSystemWindowInsetTop();
         ((FrameLayout.LayoutParams) hideEmojiBtn.getLayoutParams()).topMargin = AndroidUtilities.dp(17) + lastInsets.getSystemWindowInsetTop();
 
@@ -454,6 +462,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.voipServiceCreated);
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.emojiLoaded);
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.closeInCallActivity);
+        NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.webRtcMicAmplitudeEvent);
     }
 
     private void destroy() {
@@ -464,6 +473,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.voipServiceCreated);
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.emojiLoaded);
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.closeInCallActivity);
+        NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.webRtcMicAmplitudeEvent);
     }
 
     @Override
@@ -491,6 +501,8 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             updateKeyView(true);
         } else if (id == NotificationCenter.closeInCallActivity) {
             windowView.finish();
+        } else if (id == NotificationCenter.webRtcMicAmplitudeEvent) {
+            setUserPhotoWavesAmplitude((float) args[0] * 10);
         }
     }
 
@@ -918,9 +930,62 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         statusLayout.setFocusable(true);
         statusLayout.setFocusableInTouchMode(true);
 
-        callingUserPhotoView = new BackupImageView(context);
+        int photoRadius = 70;
+        tinyWaveDrawable.minRadius = AndroidUtilities.dp(photoRadius * 1.1f);
+        tinyWaveDrawable.maxRadius = AndroidUtilities.dp(photoRadius * 1.15f);
+        tinyWaveDrawable.paint.setColor(ColorUtils.setAlphaComponent(Color.WHITE, (int) (255 * 0.1f)));
+        tinyWaveDrawable.generateBlob();
+
+        bigWaveDrawable.minRadius = AndroidUtilities.dp(photoRadius * 1.2f);
+        bigWaveDrawable.maxRadius = AndroidUtilities.dp(photoRadius * 1.25f);
+        bigWaveDrawable.paint.setColor(ColorUtils.setAlphaComponent(Color.WHITE, (int) (255 * 0.15f)));
+        bigWaveDrawable.generateBlob();
+
+        callingUserPhotoView = new BackupImageView(context) {
+            @Override
+            protected void onDraw(Canvas canvas) {
+                long dt = System.currentTimeMillis() - lastUpdateTime;
+
+                if (animateToAmplitude != amplitude) {
+                    amplitude += animateAmplitudeDiff * dt;
+                    if (animateAmplitudeDiff > 0) {
+                        if (amplitude > animateToAmplitude) {
+                            amplitude = animateToAmplitude;
+                        }
+                    } else {
+                        if (amplitude < animateToAmplitude) {
+                            amplitude = animateToAmplitude;
+                        }
+                    }
+                    invalidate();
+                }
+
+                bigWaveDrawable.updateAmplitude(dt);
+                bigWaveDrawable.update(bigWaveDrawable.amplitude, 1.03f);
+
+                tinyWaveDrawable.updateAmplitude(dt);
+                tinyWaveDrawable.update(tinyWaveDrawable.amplitude, 1.02f);
+
+                canvas.save();
+                float scale = 1f + amplitude * 60;
+                int cx = getMeasuredWidth() / 2;
+                int cy = getMeasuredHeight() / 2;
+                canvas.scale(scale, scale, cx, cy);
+                bigWaveDrawable.draw(cx, cy, canvas, bigWaveDrawable.paint);
+                canvas.restore();
+                scale = 1f + amplitude * 40;
+                canvas.save();
+                canvas.scale(scale, scale, cx, cy);
+                tinyWaveDrawable.draw(cx, cy, canvas, tinyWaveDrawable.paint);
+                canvas.restore();
+
+                lastUpdateTime = System.currentTimeMillis();
+
+                super.onDraw(canvas);
+            }
+        };
         callingUserPhotoView.setImage(ImageLocation.getForUserOrChat(callingUser, ImageLocation.TYPE_SMALL), null, new AvatarDrawable(callingUser), callingUser);
-        callingUserPhotoView.setRoundRadius(AndroidUtilities.dp(135) / 2);
+        callingUserPhotoView.setRoundRadius(AndroidUtilities.dp(photoRadius));
 
         callingUserTitle = new TextView(context);
         callingUserTitle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 24);
@@ -1065,6 +1130,14 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         }
 
         return frameLayout;
+    }
+
+    public void setUserPhotoWavesAmplitude(double value) {
+        bigWaveDrawable.setValue((float) (Math.min(WaveDrawable.MAX_AMPLITUDE, value) / WaveDrawable.MAX_AMPLITUDE), true);
+        tinyWaveDrawable.setValue((float) (Math.min(WaveDrawable.MAX_AMPLITUDE, value) / WaveDrawable.MAX_AMPLITUDE), false);
+        animateToAmplitude = (float) (Math.min(WaveDrawable.MAX_AMPLITUDE, value) / WaveDrawable.MAX_AMPLITUDE);
+        animateAmplitudeDiff = (animateToAmplitude - amplitude) / (100 + 1000.0f * WaveDrawable.animationSpeedCircle);
+        callingUserPhotoView.invalidate();
     }
 
     private boolean checkPointerIds(MotionEvent ev) {

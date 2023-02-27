@@ -806,15 +806,15 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         frameLayout.addView(callingUserMiniFloatingLayout);
         frameLayout.addView(overlayBackground);
 
-
         bottomShadow = new View(context);
         bottomShadow.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{Color.TRANSPARENT, ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.5f))}));
+        bottomShadow.setVisibility(View.GONE);
         frameLayout.addView(bottomShadow, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 140, Gravity.BOTTOM));
 
         topShadow = new View(context);
         topShadow.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.4f)), Color.TRANSPARENT}));
+        topShadow.setVisibility(View.GONE);
         frameLayout.addView(topShadow, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 140, Gravity.TOP));
-
 
         emojiMiniLayout = new LinearLayout(context) {
             @Override
@@ -1687,6 +1687,11 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         if (currentUserIsVideo || callingUserIsVideo) {
             fillNavigationBar(true, animated);
             showCallingUserAvatar(false, animated);
+            topShadow.setVisibility(View.VISIBLE);
+            bottomShadow.setVisibility(View.VISIBLE);
+            if (patternAlphaAnimator != null) {
+                patternAlphaAnimator.pause();
+            }
         } else {
             fillNavigationBar(false, animated);
             showCallingUserAvatar(true, animated);
@@ -1696,6 +1701,11 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             } else {
                 callingUserTextureView.animate().cancel();
                 callingUserTextureView.setAlpha(0f);
+            }
+            topShadow.setVisibility(View.GONE);
+            bottomShadow.setVisibility(View.GONE);
+            if (patternAlphaAnimator != null) {
+                patternAlphaAnimator.start();
             }
         }
 

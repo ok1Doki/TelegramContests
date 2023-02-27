@@ -1796,6 +1796,12 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                 notificationsLayout.removeNotification("video");
             }
 
+            if (service.isBluetoothOn() && (currentState == VoIPService.STATE_ESTABLISHED || currentState == VoIPService.STATE_RECONNECTING)) {
+                notificationsLayout.addNotification(LocaleController.formatString("VoipBluetoothDeviceConnected", R.string.VoipBluetoothDeviceConnected), "bluetooth", animated);
+            } else {
+                notificationsLayout.removeNotification("bluetooth");
+            }
+
             if (notificationsLayout.getChildCount() == 0 && callingUserIsVideo && service.privateCall != null && !service.privateCall.video && !service.sharedUIParams.tapToVideoTooltipWasShowed) {
                 service.sharedUIParams.tapToVideoTooltipWasShowed = true;
                 tapToVideoTooltip.showForView(bottomButtons[1], true);

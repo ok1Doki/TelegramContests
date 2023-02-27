@@ -70,14 +70,20 @@ public class VoIPNotificationsLayout extends LinearLayout {
         }
     }
 
+    public void addNotification(String text, String tag, boolean animated) {
+        addNotification(-1, text, tag, animated);
+    }
+
     public void addNotification(int iconRes, String text, String tag, boolean animated) {
         if (viewsByTag.get(tag) != null) {
             return;
         }
 
-        NotificationView view = new NotificationView(getContext());
+        NotificationView view = new NotificationView(getContext(), iconRes != -1);
         view.tag = tag;
-        view.iconView.setImageResource(iconRes);
+        if (iconRes != -1) {
+            view.iconView.setImageResource(iconRes);
+        }
         view.textView.setText(text);
         viewsByTag.put(tag, view);
 
@@ -187,19 +193,21 @@ public class VoIPNotificationsLayout extends LinearLayout {
         ImageView iconView;
         TextView textView;
 
-        public NotificationView(@NonNull Context context) {
+        public NotificationView(@NonNull Context context, boolean hasIcon) {
             super(context);
             setFocusable(true);
             setFocusableInTouchMode(true);
+            setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.3f))));
 
-            iconView = new ImageView(context);
-            setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.4f))));
-            addView(iconView, LayoutHelper.createFrame(24, 24, 0, 10, 4, 10, 4));
+            if (hasIcon) {
+                iconView = new ImageView(context);
+                addView(iconView, LayoutHelper.createFrame(24, 24, 0, 10, 4, 10, 4));
+            }
 
             textView = new TextView(context);
             textView.setTextColor(Color.WHITE);
             textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-            addView(textView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL, 44, 4, 16, 4));
+            addView(textView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL, hasIcon ? 44 : 16, 4, 16, 4));
         }
 
         public void startAnimation() {

@@ -2675,7 +2675,8 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 									return;
 								}
 								setAudioOutput(which);
-							});
+							})
+					.setSelectedIndex(isSpeakerphoneOn() ? 0 : isBluetoothOn() ? 2 : 1);
 
 			BottomSheet bottomSheet = builder.create();
 			if (fromOverlayWindow) {

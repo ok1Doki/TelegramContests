@@ -102,7 +102,6 @@ import org.webrtc.TextureViewRenderer;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
-import java.util.Random;
 
 public class VoIPFragment implements VoIPService.StateListener, NotificationCenter.NotificationCenterDelegate {
 
@@ -119,6 +118,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     private static final int[] blueGreen = new int[]{0xff4576E9, 0xff3B7AF1, 0xff08B0A3, 0xff17AAE4};
     private static final int[] green = new int[]{0xff07A9AC, 0xff07BA63, 0xffA9CC66, 0xff5AB147};
     private static final int[] orangeRed = new int[]{0xffE86958, 0xffE7618F, 0xffDB904C, 0xffDE7238};
+    private int currentColor;
 
     private final int currentAccount;
 
@@ -219,6 +219,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     VoIPNotificationsLayout notificationsLayout;
 
     HintView tapToVideoTooltip;
+    TextView weakSignalTooltip;
 
     ValueAnimator uiVisibilityAnimator;
     ValueAnimator.AnimatorUpdateListener statusbarAnimatorListener = valueAnimator -> {
@@ -510,8 +511,10 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     public void onSignalBarsCountChanged(int count) {
         if (statusTextView != null) {
             if (count <= 1) {
+                showWeakSignalTooltipView(true);
                 updateBackgroundGradientType(BG_GRADIENT_WEAK_SIGNAL);
             } else {
+                showWeakSignalTooltipView(false);
                 updateBackgroundGradientType(BG_GRADIENT_ESTABLISHED);
             }
             statusTextView.setSignalBarCount(count);
@@ -869,13 +872,13 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         emojiFullLayout.setGravity(Gravity.CENTER_HORIZONTAL);
         emojiFullLayout.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(10), AndroidUtilities.dp(10), AndroidUtilities.dp(10));
         emojiFullLayout.setClipToPadding(false);
-        emojiFullLayout.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.3f))));
+        emojiFullLayout.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.15f))));
         emojiFullLayout.setVisibility(View.GONE);
         emojiFullLayout.addView(emojiAnimatedLayout, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 24, 16, 24, 0));
         emojiFullLayout.addView(emojiRationalTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 16, 0, 16));
 
         hideEmojiBtn = new TextView(context);
-        hideEmojiBtn.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.3f))));
+        hideEmojiBtn.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.15f))));
         hideEmojiBtn.setText(AndroidUtilities.replaceTags(LocaleController.formatString("HideEmoji", R.string.HideEmoji)));
         hideEmojiBtn.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(4), AndroidUtilities.dp(16), AndroidUtilities.dp(4));
         hideEmojiBtn.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
@@ -1118,6 +1121,16 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         frameLayout.addView(tapToVideoTooltip, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 19, 0, 19, 8));
         tapToVideoTooltip.setBottomOffset(AndroidUtilities.dp(4));
         tapToVideoTooltip.setVisibility(View.GONE);
+
+        weakSignalTooltip = new TextView(context);
+        weakSignalTooltip.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.15f))));
+        weakSignalTooltip.setText(AndroidUtilities.replaceTags(LocaleController.formatString("WeakSignalTooltip", R.string.WeakSignalTooltip)));
+        weakSignalTooltip.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(4), AndroidUtilities.dp(16), AndroidUtilities.dp(4));
+        weakSignalTooltip.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        weakSignalTooltip.setTextColor(Color.WHITE);
+        weakSignalTooltip.setGravity(Gravity.CENTER);
+        weakSignalTooltip.setVisibility(View.GONE);
+        frameLayout.addView(weakSignalTooltip, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 0, 0, 0, 0));
 
         updateViewState();
 
@@ -2236,6 +2249,31 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         acceptDeclineView.setTag(show ? 1 : null);
     }
 
+    private void showWeakSignalTooltipView(boolean show) {
+        if (show) {
+            weakSignalTooltip.animate().setListener(null).cancel();
+            if (weakSignalTooltip.getVisibility() != View.VISIBLE) {
+                weakSignalTooltip.setVisibility(View.VISIBLE);
+                weakSignalTooltip.setTranslationY(-statusTextView.getBottom() + 40);
+                weakSignalTooltip.setAlpha(0f);
+                weakSignalTooltip.setScaleX(0.5f);
+                weakSignalTooltip.setScaleY(0.5f);
+            }
+            weakSignalTooltip.animate().alpha(1f).scaleX(1f).scaleY(1f)
+                    .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT)
+                    .setDuration(500)
+                    .start();
+        } else {
+            weakSignalTooltip.animate().alpha(0).translationY(0)
+                    .setListener(new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            weakSignalTooltip.setVisibility(View.GONE);
+                        }
+                    }).setDuration(150).start();
+        }
+    }
+
     private void updateButtons(boolean animated) {
         VoIPService service = VoIPService.getSharedInstance();
         if (service == null) {
@@ -2583,23 +2621,27 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         } else {
             if (type == BG_GRADIENT_INITIATING) {
                 newBgGradientColors = blueViolet;
+                currentColor = 3;
                 update(true);
             } else if (type == BG_GRADIENT_ESTABLISHED) {
-                if (lastGradientChanged == 0 || System.currentTimeMillis() - lastGradientChanged > 10_000) {
-                    Random r = new Random();
-                    int cur = r.nextInt();
-                    if (lastGradientChanged == 0 || cur % 3 == 0) {
+                boolean force = currentColor == 4;
+                if (lastGradientChanged == 0 || System.currentTimeMillis() - lastGradientChanged > 10_000 || force) {
+                    if (currentColor == 0 || currentColor == 3 || currentColor == 4) {
                         newBgGradientColors = green;
-                    } else if (cur % 2 == 0) {
+                        currentColor = 1;
+                    } else if (currentColor == 1) {
                         newBgGradientColors = blueGreen;
+                        currentColor = 2;
                     } else {
                         newBgGradientColors = blueViolet;
+                        currentColor = 3;
                     }
-                    update(Arrays.equals(prevBgGradientColors, orangeRed));
+                    update(force);
                 }
             } else if (type == BG_GRADIENT_WEAK_SIGNAL) {
-                if (newBgGradientColors != orangeRed) {
+                if (currentColor != 4) {
                     newBgGradientColors = orangeRed;
+                    currentColor = 4;
                     update(true);
                 }
             }

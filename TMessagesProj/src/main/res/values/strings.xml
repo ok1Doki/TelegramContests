@@ -4033,6 +4033,7 @@
     <string name="RateCallVideoDistorted">Video was distorted</string>
     <string name="RateCallVideoPixelated">Video was pixelated</string>
     <string name="TapToTurnCamera">Tap here to turn on your camera</string>
+    <string name="WeakSignalTooltip">Weak network signal</string>
     <string name="VoipUnmute">Unmute</string>
     <string name="VoipHoldAndTalk">or hold and talk</string>
     <string name="VoipTapToMute">You\'re Live</string>
@@ -4051,6 +4052,7 @@
     <string name="VoipSwitch">SWITCH</string>
     <string name="VoipUserMicrophoneIsOff">%s\'s microphone is off</string>
     <string name="VoipUserCameraIsOff">%s\'s camera is off</string>
+    <string name="VoipBluetoothDeviceConnected">Bluetooth device connected</string>
     <string name="AcceptCall">Accept</string>
     <string name="DeclineCall">Decline</string>
     <string name="RetryCall">Retry</string>

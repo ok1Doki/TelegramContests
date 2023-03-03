@@ -4484,6 +4484,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 	public static class SharedUIParams {
 		public boolean tapToVideoTooltipWasShowed;
 		public boolean cameraAlertWasShowed;
+		public boolean encryptionKeyTooltipShown;
 		public boolean wasVideoCall;
 	}
 }

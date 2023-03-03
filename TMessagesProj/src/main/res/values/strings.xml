@@ -4033,6 +4033,7 @@
     <string name="RateCallVideoDistorted">Video was distorted</string>
     <string name="RateCallVideoPixelated">Video was pixelated</string>
     <string name="TapToTurnCamera">Tap here to turn on your camera</string>
+    <string name="EncryptionKeyTooltip">Encryption key of this call</string>
     <string name="WeakSignalTooltip">Weak network signal</string>
     <string name="VoipUnmute">Unmute</string>
     <string name="VoipHoldAndTalk">or hold and talk</string>

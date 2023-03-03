@@ -18,6 +18,8 @@ import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.PowerManager;
@@ -219,6 +221,8 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     VoIPNotificationsLayout notificationsLayout;
 
     HintView tapToVideoTooltip;
+    // TODO Try to reuse the package org.telegram.ui.Components.HintView for the next two elements
+    LinearLayout encryptionKeyTooltip;
     TextView weakSignalTooltip;
 
     ValueAnimator uiVisibilityAnimator;
@@ -1122,6 +1126,32 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         tapToVideoTooltip.setBottomOffset(AndroidUtilities.dp(4));
         tapToVideoTooltip.setVisibility(View.GONE);
 
+        TextView encryptionKeyText = new TextView(context);
+        encryptionKeyText.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(8), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.15f))));
+        encryptionKeyText.setText(AndroidUtilities.replaceTags(LocaleController.formatString("EncryptionKeyTooltip", R.string.EncryptionKeyTooltip)));
+        encryptionKeyText.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(4), AndroidUtilities.dp(16), AndroidUtilities.dp(4));
+        encryptionKeyText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        encryptionKeyText.setTextColor(Color.WHITE);
+        encryptionKeyText.setGravity(Gravity.CENTER);
+
+        ImageView arrowImageView = new ImageView(context);
+        arrowImageView.setImageResource(R.drawable.tooltip_arrow_up);
+        arrowImageView.setColorFilter(new PorterDuffColorFilter(ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.15f)), PorterDuff.Mode.MULTIPLY));
+
+        encryptionKeyTooltip = new LinearLayout(context) {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(info);
+                info.setVisibleToUser(emojiLoaded);
+            }
+        };
+        encryptionKeyTooltip.setOrientation(LinearLayout.VERTICAL);
+        encryptionKeyTooltip.setGravity(Gravity.CENTER_HORIZONTAL);
+        encryptionKeyTooltip.setVisibility(View.GONE);
+        encryptionKeyTooltip.addView(arrowImageView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL | Gravity.TOP));
+        encryptionKeyTooltip.addView(encryptionKeyText, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
+        frameLayout.addView(encryptionKeyTooltip, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 78, 0, 0));
+
         weakSignalTooltip = new TextView(context);
         weakSignalTooltip.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.15f))));
         weakSignalTooltip.setText(AndroidUtilities.replaceTags(LocaleController.formatString("WeakSignalTooltip", R.string.WeakSignalTooltip)));
@@ -1130,7 +1160,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         weakSignalTooltip.setTextColor(Color.WHITE);
         weakSignalTooltip.setGravity(Gravity.CENTER);
         weakSignalTooltip.setVisibility(View.GONE);
-        frameLayout.addView(weakSignalTooltip, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 0, 0, 0, 0));
+        frameLayout.addView(weakSignalTooltip, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER));
 
         updateViewState();
 
@@ -1475,6 +1505,9 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         }
         emojiExpanded = expanded;
         if (expanded) {
+            VoIPService.getSharedInstance().sharedUIParams.encryptionKeyTooltipShown = true;
+            encryptionKeyTooltip.setVisibility(View.GONE);
+
             AndroidUtilities.runOnUIThread(hideUIRunnable);
             hideUiRunnableWaiting = false;
 
@@ -1553,8 +1586,6 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                 statusTextView.animate().translationY(0)
                         .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).setDuration(500).start();
             }
-
-
 
             emojiMiniLayout.setVisibility(View.GONE);
 
@@ -2207,17 +2238,26 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         if (count == 4) {
             emojiLoaded = true;
             for (int i = 0; i < 4; i++) {
+                emojiViews[i].setScaleX(0f);
+                emojiViews[i].setScaleY(0f);
+                emojiViews[i].setAlpha(0f);
                 emojiViews[i].setVisibility(View.VISIBLE);
                 if (animated) {
-                    emojiViews[i].setScaleX(0f);
-                    emojiViews[i].setScaleY(0f);
-                    emojiViews[i].setAlpha(0f);
                     emojiViews[i].animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(200).start();
                 } else {
                     emojiViews[i].setScaleX(1f);
                     emojiViews[i].setScaleY(1f);
                     emojiViews[i].setAlpha(1f);
                 }
+            }
+            encryptionKeyTooltip.setScaleX(0f);
+            encryptionKeyTooltip.setScaleY(0f);
+            encryptionKeyTooltip.setAlpha(0f);
+            encryptionKeyTooltip.setVisibility(View.VISIBLE);
+            if (animated) {
+                encryptionKeyTooltip.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(200).start();
+            } else {
+                encryptionKeyTooltip.setAlpha(1f);
             }
         }
     }

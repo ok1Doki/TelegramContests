@@ -20,6 +20,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
+import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.PowerManager;
@@ -84,6 +85,7 @@ import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.HintView;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.MotionBackgroundDrawable;
+import org.telegram.ui.Components.RLottieImageView;
 import org.telegram.ui.Components.WaveDrawable;
 import org.telegram.ui.Components.voip.AcceptDeclineView;
 import org.telegram.ui.Components.voip.PrivateVideoPreviewDialog;
@@ -177,6 +179,11 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
 
     View bottomShadow;
     View topShadow;
+
+    LinearLayout rateCallView;
+    RLottieImageView[] stars;
+    RLottieImageView starEffect;
+    int rating;
 
     private VoIPButtonsLayout buttonsLayout;
     Paint overlayPaint = new Paint();
@@ -866,7 +873,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                         "CallEmojiKeyTooltip2",
                         R.string.CallEmojiKeyTooltip2,
                         UserObject.getFirstName(callingUser))));
-        emojiRationalTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        emojiRationalTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         emojiRationalTextView.setTextColor(Color.WHITE);
         emojiRationalTextView.setGravity(Gravity.CENTER);
         emojiRationalTextView.setVisibility(View.GONE);
@@ -885,7 +892,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         hideEmojiBtn.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.15f))));
         hideEmojiBtn.setText(AndroidUtilities.replaceTags(LocaleController.formatString("HideEmoji", R.string.HideEmoji)));
         hideEmojiBtn.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(4), AndroidUtilities.dp(16), AndroidUtilities.dp(4));
-        hideEmojiBtn.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        hideEmojiBtn.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         hideEmojiBtn.setTextColor(Color.WHITE);
         hideEmojiBtn.setGravity(Gravity.CENTER);
         hideEmojiBtn.setVisibility(View.GONE);
@@ -1130,7 +1137,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         encryptionKeyText.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(8), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.15f))));
         encryptionKeyText.setText(AndroidUtilities.replaceTags(LocaleController.formatString("EncryptionKeyTooltip", R.string.EncryptionKeyTooltip)));
         encryptionKeyText.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(4), AndroidUtilities.dp(16), AndroidUtilities.dp(4));
-        encryptionKeyText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        encryptionKeyText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         encryptionKeyText.setTextColor(Color.WHITE);
         encryptionKeyText.setGravity(Gravity.CENTER);
 
@@ -1156,11 +1163,51 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         weakSignalTooltip.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.15f))));
         weakSignalTooltip.setText(AndroidUtilities.replaceTags(LocaleController.formatString("WeakSignalTooltip", R.string.WeakSignalTooltip)));
         weakSignalTooltip.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(4), AndroidUtilities.dp(16), AndroidUtilities.dp(4));
-        weakSignalTooltip.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        weakSignalTooltip.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         weakSignalTooltip.setTextColor(Color.WHITE);
         weakSignalTooltip.setGravity(Gravity.CENTER);
         weakSignalTooltip.setVisibility(View.GONE);
         frameLayout.addView(weakSignalTooltip, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER));
+
+        TextView rateCallTitle = new TextView(context);
+        rateCallTitle.setText(AndroidUtilities.replaceTags(LocaleController.formatString("VoipRateCall", R.string.VoipRateCall)));
+        rateCallTitle.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(4), AndroidUtilities.dp(16), AndroidUtilities.dp(4));
+        rateCallTitle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        rateCallTitle.setTextColor(Color.WHITE);
+        rateCallTitle.setGravity(Gravity.CENTER);
+
+        TextView rateCallDescription = new TextView(context);
+        rateCallDescription.setText(AndroidUtilities.replaceTags(LocaleController.formatString("VoipRateCallDescription", R.string.VoipRateCallDescription)));
+        rateCallDescription.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(4), AndroidUtilities.dp(16), AndroidUtilities.dp(4));
+        rateCallDescription.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        rateCallDescription.setTextColor(Color.WHITE);
+        rateCallDescription.setGravity(Gravity.CENTER);
+
+        LinearLayout starsLayout = new LinearLayout(context);
+        starsLayout.setOrientation(LinearLayout.HORIZONTAL);
+
+        stars = new RLottieImageView[5];
+        for (int i = 0; i < stars.length; i++) {
+            stars[i] = new RLottieImageView(context);
+            stars[i].setAnimation(R.raw.star, 40, 40);
+            stars[i].setTag(i);
+            stars[i].setOnClickListener(this::clickStar);
+            starsLayout.addView(stars[i], LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
+        }
+
+        starEffect = new RLottieImageView(context);
+        starEffect.setAnimation(R.raw.star_effect, AndroidUtilities.dp(100), AndroidUtilities.dp(100));
+        frameLayout.addView(starEffect, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
+
+        rateCallView = new LinearLayout(context);
+        rateCallView.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.15f))));
+        rateCallView.setOrientation(LinearLayout.VERTICAL);
+        rateCallView.setPadding(AndroidUtilities.dp(30), AndroidUtilities.dp(10), AndroidUtilities.dp(30), AndroidUtilities.dp(10));
+        rateCallView.addView(rateCallTitle, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 8));
+        rateCallView.addView(rateCallDescription, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 4));
+        rateCallView.addView(starsLayout, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL));
+
+        frameLayout.addView(rateCallView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 0, 70, 0, 0));
 
         updateViewState();
 
@@ -1173,6 +1220,36 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         }
 
         return frameLayout;
+    }
+
+    private void clickStar(View v) {
+        int index = (int) v.getTag();
+
+        if (index + 1 == rating) {
+            return;
+        }
+
+        for (int i = 0; i < 5; i++) {
+            if (i <= index) {
+                stars[i].playAnimation();
+                rating = i + 1;
+            } else {
+                stars[i].stopAnimation();
+                stars[i].setProgress(0);
+            }
+        }
+
+        if (index > 2) {
+            int[] location = new int[2];
+            rateCallView.getLocationOnScreen(location);
+            starEffect.setX(location[0] + stars[index].getMeasuredWidth() * (index - 1));
+            starEffect.setY(location[1]);
+            starEffect.playAnimation();
+            starEffect.setOnAnimationEndListener(() -> AndroidUtilities.runOnUIThread(() -> {
+                starEffect.stopAnimation();
+                starEffect.setProgress(0);
+            }));
+        }
     }
 
     public void setUserPhotoWavesAmplitude(double value) {

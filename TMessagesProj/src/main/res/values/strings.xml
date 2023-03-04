@@ -3989,6 +3989,8 @@
     <string name="VoipNeedMicCameraPermissionWithHint">**Telegram** needs camera and microphone access so that you can make video calls. Tap Settings -> Permissions, and turn **Microphone** and **Camera** on.</string>
     <string name="VoipNeedCameraPermission">Telegram needs access to your camera so that you can make video calls.</string>
     <string name="VoipFeedbackCommentHint">Add an optional comment</string>
+    <string name="VoipRateCall">**Rate this call**</string>
+    <string name="VoipRateCallDescription">Please rate the quality of this call.</string>
     <string name="CallBack">Call Back</string>
     <string name="CallAgain">Call Again</string>
     <string name="DefaultRingtone">Default</string>

@@ -24,6 +24,7 @@ public class VoIPTimerView extends View {
     String currentTimeStr;
     TextPaint textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private int signalBarCount = 4;
+    public boolean signalBarVisible = true;
 
     Runnable updater = () -> {
         if (getVisibility() == View.VISIBLE) {
@@ -91,17 +92,20 @@ public class VoIPTimerView extends View {
         int totalWidth = timerLayout == null ? 0 : timerLayout.getWidth() + AndroidUtilities.dp(21);
         canvas.save();
         canvas.translate((getMeasuredWidth() - totalWidth) / 2f, 0);
-        canvas.save();
-        canvas.translate(0, (getMeasuredHeight() - AndroidUtilities.dp(11)) / 2f);
-        for (int i = 0; i < 4; i++) {
-            Paint p = i + 1 > signalBarCount ? inactivePaint : activePaint;
-            rectF.set(AndroidUtilities.dpf2(4.16f) * i, AndroidUtilities.dpf2(2.75f) * (3 - i), AndroidUtilities.dpf2(4.16f) * i + AndroidUtilities.dpf2(2.75f), AndroidUtilities.dp(11));
-            canvas.drawRoundRect(rectF, AndroidUtilities.dpf2(0.7f), AndroidUtilities.dpf2(0.7f), p);
+
+        if (signalBarVisible) {
+            canvas.save();
+            canvas.translate(0, (getMeasuredHeight() - AndroidUtilities.dp(11)) / 2f);
+            for (int i = 0; i < 4; i++) {
+                Paint p = i + 1 > signalBarCount ? inactivePaint : activePaint;
+                rectF.set(AndroidUtilities.dpf2(4.16f) * i, AndroidUtilities.dpf2(2.75f) * (3 - i), AndroidUtilities.dpf2(4.16f) * i + AndroidUtilities.dpf2(2.75f), AndroidUtilities.dp(11));
+                canvas.drawRoundRect(rectF, AndroidUtilities.dpf2(0.7f), AndroidUtilities.dpf2(0.7f), p);
+            }
+            canvas.restore();
         }
-        canvas.restore();
 
         if (timerLayout != null) {
-            canvas.translate(AndroidUtilities.dp(21), 0);
+            canvas.translate(AndroidUtilities.dp(signalBarVisible ? 21 : 10), 0);
             timerLayout.draw(canvas);
         }
         canvas.restore();

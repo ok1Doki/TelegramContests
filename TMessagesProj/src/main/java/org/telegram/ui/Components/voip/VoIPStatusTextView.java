@@ -252,6 +252,11 @@ public class VoIPStatusTextView extends FrameLayout {
         }
     }
 
+    public void hideSignalBar() {
+        timerView.signalBarVisible = false;
+        timerView.invalidate();
+    }
+
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();

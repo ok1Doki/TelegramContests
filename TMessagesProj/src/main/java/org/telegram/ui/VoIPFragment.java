@@ -142,15 +142,15 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     private MotionBackgroundDrawable animatedGradientDrawable =
             new MotionBackgroundDrawable(blueViolet[0], blueViolet[1], blueViolet[2], blueViolet[3], true);
     private MotionBackgroundDrawable prevMotionDrawable;
-    private final int[] prevBgGradientColors = animatedGradientDrawable.getColors();
+    private final int[] prevBgGradientColors = new int[4];
     private int[] newBgGradientColors = null;
     private long lastGradientChanged;
     private ValueAnimator patternAlphaAnimator;
 
     private View photoWithWaves;
     private BackupImageView callingUserPhotoView;
-    private BlobDrawable tinyWaveDrawable = new BlobDrawable(11);
-    private BlobDrawable bigWaveDrawable = new BlobDrawable(12);
+    private final BlobDrawable tinyWaveDrawable = new BlobDrawable(11);
+    private final BlobDrawable bigWaveDrawable = new BlobDrawable(12);
     private float amplitude;
     private float animateToAmplitude;
     private float animateAmplitudeDiff;
@@ -2833,15 +2833,12 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             animatedGradientDrawable.setIndeterminateAnimation(false);
             currentColor = 0;
         } else {
-            if (!animatedGradientDrawable.isIndeterminateAnimation()) {
-                animatedGradientDrawable.setIndeterminateAnimation(true);
-            }
             if (type == BG_GRADIENT_INITIATING) {
                 newBgGradientColors = blueViolet;
                 currentColor = 3;
                 update(true);
             } else if (type == BG_GRADIENT_ESTABLISHED) {
-                boolean force = currentColor == 0 || currentColor == 4;
+                boolean force = currentColor == 0 || currentColor == 3 || currentColor == 4;
                 if (lastGradientChanged == 0 || System.currentTimeMillis() - lastGradientChanged > 10_000 || force) {
                     if (currentColor == 0 || currentColor == 3 || currentColor == 4) {
                         newBgGradientColors = green;

@@ -113,7 +113,6 @@ import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.JoinCallAlert;
 import org.telegram.ui.Components.voip.VoIPHelper;
 import org.telegram.ui.LaunchActivity;
-import org.telegram.ui.VoIPFeedbackActivity;
 import org.telegram.ui.VoIPFragment;
 import org.telegram.ui.VoIPPermissionActivity;
 import org.webrtc.VideoFrame;
@@ -157,6 +156,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 	public static final int STATE_RECONNECTING = Instance.STATE_RECONNECTING;
 	public static final int STATE_CREATING = 6;
 	public static final int STATE_ENDED = 11;
+	public static final int STATE_RATE_ENDED = 18;
 	public static final String ACTION_HEADSET_PLUG = "android.intent.action.HEADSET_PLUG";
 
 	private static final int ID_ONGOING_CALL_NOTIFICATION = 201;
@@ -1170,7 +1170,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			if (captureDevice[index] != 0) {
 				videoState[trueIndex] = state;
 				NativeInstance.setVideoStateCapturer(captureDevice[index], videoState[trueIndex]);
-			} else if (state == Instance.VIDEO_STATE_ACTIVE && currentState != STATE_BUSY && currentState != STATE_ENDED) {
+			} else if (state == Instance.VIDEO_STATE_ACTIVE && currentState != STATE_BUSY && currentState != STATE_ENDED && currentState != STATE_RATE_ENDED) {
 				captureDevice[index] = NativeInstance.createVideoCapturer(localSink[trueIndex], isFrontFaceCamera ? 1 : 0);
 				videoState[trueIndex] = Instance.VIDEO_STATE_ACTIVE;
 			}
@@ -1555,18 +1555,19 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 	}
 
 	private void startRatingActivity() {
-		try {
-			PendingIntent.getActivity(VoIPService.this, 0, new Intent(VoIPService.this, VoIPFeedbackActivity.class)
-					.putExtra("call_id", privateCall.id)
-					.putExtra("call_access_hash", privateCall.access_hash)
-					.putExtra("call_video", privateCall.video)
-					.putExtra("account", currentAccount)
-					.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_MUTABLE).send();
-		} catch (Exception x) {
-			if (BuildVars.LOGS_ENABLED) {
-				FileLog.e("Error starting incall activity", x);
-			}
-		}
+		NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.needRateCall, privateCall.id, privateCall.access_hash);
+//		try {
+//			PendingIntent.getActivity(VoIPService.this, 0, new Intent(VoIPService.this, VoIPFeedbackActivity.class)
+//					.putExtra("call_id", privateCall.id)
+//					.putExtra("call_access_hash", privateCall.access_hash)
+//					.putExtra("call_video", privateCall.video)
+//					.putExtra("account", currentAccount)
+//					.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_MUTABLE).send();
+//		} catch (Exception x) {
+//			if (BuildVars.LOGS_ENABLED) {
+//				FileLog.e("Error starting incall activity", x);
+//			}
+//		}
 	}
 
 	public byte[] getEncryptionKey() {
@@ -3213,7 +3214,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			}
 			return;
 		}
-		if (currentState == STATE_HANGING_UP || currentState == STATE_ENDED) {
+		if (currentState == STATE_HANGING_UP || currentState == STATE_ENDED || currentState == STATE_RATE_ENDED) {
 			return;
 		}
 		dispatchStateChanged(STATE_HANGING_UP);
@@ -4194,7 +4195,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 		if (groupCall != null && (!playedConnectedSound || onDestroyRunnable != null)) {
 			needPlayEndSound = false;
 		}
-		AndroidUtilities.runOnUIThread(() -> dispatchStateChanged(STATE_ENDED));
+		AndroidUtilities.runOnUIThread(() -> dispatchStateChanged(needRateCall ? STATE_RATE_ENDED : STATE_ENDED));
 		int delay = 700;
 		Utilities.globalQueue.postRunnable(() -> {
 			if (spPlayId != 0) {

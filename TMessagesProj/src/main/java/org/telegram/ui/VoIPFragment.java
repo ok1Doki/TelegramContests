@@ -20,7 +20,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
-import android.graphics.Rect;
+import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.PowerManager;
@@ -72,6 +72,7 @@ import org.telegram.messenger.voip.EncryptionKeyEmojifier;
 import org.telegram.messenger.voip.Instance;
 import org.telegram.messenger.voip.VideoCapturerDevice;
 import org.telegram.messenger.voip.VoIPService;
+import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.AlertDialog;
@@ -184,6 +185,8 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     RLottieImageView[] stars;
     RLottieImageView starEffect;
     int rating;
+    TLRPC.TL_phone_setCallRating ratingReq;
+    TextView closeButton;
 
     private VoIPButtonsLayout buttonsLayout;
     Paint overlayPaint = new Paint();
@@ -475,6 +478,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.emojiLoaded);
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.closeInCallActivity);
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.webRtcMicAmplitudeEvent);
+        NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.needRateCall);
     }
 
     private void destroy() {
@@ -485,7 +489,8 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.voipServiceCreated);
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.emojiLoaded);
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.closeInCallActivity);
-        NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.webRtcMicAmplitudeEvent);
+        NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.webRtcMicAmplitudeEvent);
+        NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.needRateCall);
     }
 
     @Override
@@ -515,7 +520,18 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             windowView.finish();
         } else if (id == NotificationCenter.webRtcMicAmplitudeEvent) {
             setUserPhotoWavesAmplitude((float) args[0] * 10);
+        } else if (id == NotificationCenter.needRateCall) {
+            ratingReq = new TLRPC.TL_phone_setCallRating();
+            ratingReq.peer = new TLRPC.TL_inputPhoneCall();
+            ratingReq.peer.id = (long) args[0];
+            ratingReq.peer.access_hash = (long) args[1];
+            ratingReq.user_initiative = false;
+            showRateCallView();
         }
+    }
+
+    private void showRateCallView() {
+        rateCallView.setVisibility(View.VISIBLE);
     }
 
     @Override
@@ -1202,12 +1218,34 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         rateCallView = new LinearLayout(context);
         rateCallView.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), ColorUtils.setAlphaComponent(Color.BLACK, (int) (255 * 0.15f))));
         rateCallView.setOrientation(LinearLayout.VERTICAL);
+        rateCallView.setVisibility(View.GONE);
         rateCallView.setPadding(AndroidUtilities.dp(30), AndroidUtilities.dp(10), AndroidUtilities.dp(30), AndroidUtilities.dp(10));
         rateCallView.addView(rateCallTitle, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 8));
         rateCallView.addView(rateCallDescription, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 4));
         rateCallView.addView(starsLayout, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL));
-
         frameLayout.addView(rateCallView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 0, 70, 0, 0));
+
+        closeButton = new TextView(context);
+        closeButton.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(8), Color.WHITE));
+        closeButton.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(10), AndroidUtilities.dp(10), AndroidUtilities.dp(10));
+        closeButton.setText(LocaleController.getString("Close", R.string.Close));
+        closeButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        closeButton.setTypeface(null, Typeface.BOLD);
+        closeButton.setGravity(Gravity.CENTER);
+        closeButton.setOnClickListener(v -> {
+            if (rating > 0 && ratingReq != null) {
+                ratingReq.rating = rating;
+                ConnectionsManager.getInstance(currentAccount).sendRequest(ratingReq, (response, error) -> {
+                    if (response instanceof TLRPC.TL_updates) {
+                        TLRPC.TL_updates updates = (TLRPC.TL_updates) response;
+                        MessagesController.getInstance(currentAccount).processUpdates(updates, false);
+                    }
+                });
+            }
+            AndroidUtilities.runOnUIThread(() -> windowView.finish(), 200);
+        });
+        closeButton.setVisibility(View.GONE);
+        frameLayout.addView(closeButton, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM, 24, 24, 24, 24));
 
         updateViewState();
 
@@ -1782,6 +1820,9 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
                 currentUserTextureView.saveCameraLastBitmap();
                 AndroidUtilities.runOnUIThread(() -> windowView.finish(), 200);
                 break;
+            case VoIPService.STATE_RATE_ENDED:
+                callEndHideUI();
+                break;
             case VoIPService.STATE_FAILED:
                 statusTextView.setText(LocaleController.getString("VoipFailed", R.string.VoipFailed), false, animated);
                 final VoIPService voipService = VoIPService.getSharedInstance();
@@ -1966,7 +2007,7 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         }
         statusLayoutAnimateToOffset = statusLayoutOffset;
         overlayBackground.setShowBlackout(currentUserIsVideo || callingUserIsVideo, animated);
-        canSwitchToPip = (currentState != VoIPService.STATE_ENDED && currentState != VoIPService.STATE_BUSY) && (currentUserIsVideo || callingUserIsVideo);
+        canSwitchToPip = (currentState != VoIPService.STATE_ENDED && currentState != VoIPService.STATE_BUSY && currentState != VoIPService.STATE_RATE_ENDED) && (currentUserIsVideo || callingUserIsVideo);
 
         int floatingViewsOffset;
         if (service != null) {
@@ -2063,6 +2104,14 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
         callingUserMiniFloatingLayout.restoreRelativePosition();
 
         updateSpeakerPhoneIcon();
+    }
+
+    private void callEndHideUI() {
+        emojiMiniLayout.animate().alpha(0).setDuration(150).start();
+        buttonsLayout.animate().alpha(0).setDuration(150).start();
+        notificationsLayout.removeAllViews();
+
+        closeButton.setVisibility(View.VISIBLE);
     }
 
     private void fillNavigationBar(boolean fill, boolean animated) {
